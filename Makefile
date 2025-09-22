@@ -2,6 +2,8 @@
 
 # Configuration
 MODEL_ID = TinyLlama/TinyLlama-1.1B-Chat-v1.0
+PORT ?= 8000
+DEBUG ?= false
 # Alternative models you can try:
 # MODEL_ID = microsoft/DialoGPT-medium
 # MODEL_ID = gpt2
@@ -18,135 +20,88 @@ help:
 	@echo "  make change-model - Change the model configuration"
 	@echo "  make help   - Show this help"
 	@echo ""
+	@echo "Options:"
+	@echo "  make serve PORT=6050 - Use custom port (default: 8000)"
+	@echo "  make serve DEBUG=true - Enable debug logging"
+	@echo "  make init DEBUG=true - Enable debug logging for initialization"
+	@echo ""
 	@echo "Current model: $(MODEL_ID)"
+	@echo "Current port: $(PORT)"
 
 # Initialize everything
 init:
 	@echo "🚀 Initializing Poke-LLM..."
-	@echo "Setting up environment..."
-	@if [ ! -d ".venv" ]; then \
-		python3 -m venv .venv; \
-		chmod +x .venv/bin/activate; \
-		echo "✅ Virtual environment created"; \
+	@if [ ! -d ".venv" ]; then python3 -m venv .venv; chmod +x .venv/bin/activate; fi
+	@if [ "$(DEBUG)" = "true" ]; then \
+		.venv/bin/python -m pip install -r requirements.txt; \
 	else \
-		echo "✅ Virtual environment already exists"; \
+		.venv/bin/python -m pip install -r requirements.txt > /dev/null; \
 	fi
-	@echo "Installing dependencies..."
-	@.venv/bin/python -m pip install -r requirements.txt > /dev/null
-	@echo "✅ Dependencies installed"
-	@echo "Setting up API key..."
 	@if [ ! -f ".api-key" ]; then \
-		echo ""; \
-		echo "🔑 API Key Setup"; \
-		echo "================"; \
-		echo "Enter your API key for authentication:"; \
-		read -p "API Key: " api_key; \
-		echo "$$api_key" > .api-key; \
-		echo "✅ API key saved to .api-key"; \
-	else \
-		echo "✅ API key already exists"; \
+		echo "🔑 Enter API key:"; read -p "API Key: " api_key; echo "$$api_key" > .api-key; \
 	fi
-	@echo "Downloading cloudflared..."
 	@if [ ! -f "cloudflared" ]; then \
 		ARCH=$$(uname -m); \
-		if [ "$$ARCH" = "arm64" ]; then \
-			URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-arm64.tgz"; \
-		else \
-			URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz"; \
-		fi; \
-		curl -L "$$URL" -o cloudflared.tgz; \
-		tar -xzf cloudflared.tgz; \
-		chmod +x cloudflared; \
-		rm cloudflared.tgz; \
-		echo "✅ Cloudflared downloaded"; \
-	else \
-		echo "✅ Cloudflared already exists"; \
+		URL=$$([ "$$ARCH" = "arm64" ] && echo "cloudflared-darwin-arm64.tgz" || echo "cloudflared-darwin-amd64.tgz"); \
+		curl -L "https://github.com/cloudflare/cloudflared/releases/latest/download/$$URL" -o cloudflared.tgz; \
+		tar -xzf cloudflared.tgz; chmod +x cloudflared; rm cloudflared.tgz; \
 	fi
-	@echo "Preparing model $(MODEL_ID) (this may take a while on first run)..."
-	@.venv/bin/python -c "from transformers import AutoTokenizer, AutoModelForCausalLM; import torch; tokenizer = AutoTokenizer.from_pretrained('$(MODEL_ID)'); model = AutoModelForCausalLM.from_pretrained('$(MODEL_ID)', dtype=torch.float16, device_map='auto')" > /dev/null 2>&1
-	@echo "✅ Model prepared"
-	@echo ""
-	@echo "🎉 Initialization complete!"
-	@echo "Run 'make serve' to start the API"
+	@echo "Preparing model $(MODEL_ID)..."
+	@if [ "$(DEBUG)" = "true" ]; then \
+		.venv/bin/python -c "from transformers import AutoTokenizer, AutoModelForCausalLM; import torch; tokenizer = AutoTokenizer.from_pretrained('$(MODEL_ID)'); model = AutoModelForCausalLM.from_pretrained('$(MODEL_ID)', dtype=torch.float16, device_map='auto')"; \
+	else \
+		.venv/bin/python -c "from transformers import AutoTokenizer, AutoModelForCausalLM; import torch; tokenizer = AutoTokenizer.from_pretrained('$(MODEL_ID)'); model = AutoModelForCausalLM.from_pretrained('$(MODEL_ID)', dtype=torch.float16, device_map='auto')" > /dev/null 2>&1; \
+	fi
+	@echo "✅ Ready! Run 'make serve' to start"
 
 # Serve the API
 serve:
-	@echo "🚀 Starting Poke-LLM API..."
-	@if [ ! -f ".api-key" ]; then \
-		echo "❌ Error: .api-key file not found!"; \
-		echo "Create a .api-key file with your API key first."; \
-		exit 1; \
+	@[ ! -f ".api-key" ] && echo "❌ Run 'make init' first" && exit 1 || true
+	@[ ! -d ".venv" ] && echo "❌ Run 'make init' first" && exit 1 || true
+	@[ ! -f "cloudflared" ] && echo "❌ Run 'make init' first" && exit 1 || true
+	@echo "🚀 Starting on port $(PORT)..."
+	@if [ "$(DEBUG)" = "true" ]; then \
+		.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port $(PORT) --log-level debug & \
+	else \
+		.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port $(PORT) & \
 	fi
-	@if [ ! -d ".venv" ]; then \
-		echo "❌ Error: Virtual environment not found!"; \
-		echo "Run 'make init' first."; \
-		exit 1; \
-	fi
-	@if [ ! -f "cloudflared" ]; then \
-		echo "❌ Error: Cloudflared not found!"; \
-		echo "Run 'make init' first."; \
-		exit 1; \
-	fi
-	@echo "Starting FastAPI..."
-	@.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8000 &
-	@FASTAPI_PID=$$!; \
-	echo "FastAPI PID: $$FASTAPI_PID"; \
-	sleep 5; \
-	echo "Starting tunnel..."; \
-	./cloudflared tunnel --url http://127.0.0.1:8000 > tunnel.log 2>&1 & \
-	TUNNEL_PID=$$!; \
-	echo "Tunnel PID: $$TUNNEL_PID"; \
-	sleep 8; \
+	@FASTAPI_PID=$$!; sleep 5; \
+	./cloudflared tunnel --url http://127.0.0.1:$(PORT) > tunnel.log 2>&1 & \
+	TUNNEL_PID=$$!; sleep 8; \
 	TUNNEL_URL=$$(grep -o 'https://[^[:space:]]*\.trycloudflare\.com' tunnel.log 2>/dev/null | head -1); \
 	echo ""; \
-	echo "🎉 Poke-LLM is running!"; \
-	echo "======================="; \
-	echo "📱 Local API: http://127.0.0.1:8000"; \
-	if [ ! -z "$$TUNNEL_URL" ]; then \
-		echo "🌐 Public URL: $$TUNNEL_URL"; \
-	else \
-		echo "🌐 Public URL: Check tunnel.log for URL"; \
-	fi; \
-	echo ""; \
-	echo "🧪 Test: python test.py"; \
-	echo "🛑 Stop: kill $$FASTAPI_PID $$TUNNEL_PID"; \
+	echo "🎉 Poke-LLM API is running!"; \
+	echo "═══════════════════════════════"; \
+	echo "📱 Local:  http://127.0.0.1:$(PORT)"; \
+	echo "🌐 Public: $$TUNNEL_URL"; \
+	echo "📚 Docs:   http://127.0.0.1:$(PORT)/docs"; \
+	echo "🧪 Test:   python test.py"; \
+	echo "🛑 Stop:   kill $$FASTAPI_PID $$TUNNEL_PID"; \
+	echo "═══════════════════════════════"; \
 	echo ""; \
 	wait
 
 # Change model configuration
 change-model:
-	@echo "🤖 Model Configuration"
-	@echo "======================"
-	@echo "Current model: $(MODEL_ID)"
-	@echo ""
-	@echo "Available models:"
-	@echo "  1) TinyLlama/TinyLlama-1.1B-Chat-v1.0 (default, small & fast)"
-	@echo "  2) gpt2 (very small, fast)"
-	@echo "  3) distilgpt2 (smaller GPT-2)"
-	@echo "  4) microsoft/DialoGPT-medium (conversational)"
-	@echo "  5) EleutherAI/gpt-neo-125M (small GPT-Neo)"
-	@echo "  6) Custom model"
-	@echo ""
-	@read -p "Choose option (1-6): " choice; \
+	@echo "🤖 Current: $(MODEL_ID)"
+	@echo "1) TinyLlama (default) 2) gpt2 3) distilgpt2 4) DialoGPT 5) gpt-neo 6) Custom"
+	@read -p "Choose (1-6): " choice; \
 	case $$choice in \
 		1) new_model="TinyLlama/TinyLlama-1.1B-Chat-v1.0" ;; \
 		2) new_model="gpt2" ;; \
 		3) new_model="distilgpt2" ;; \
 		4) new_model="microsoft/DialoGPT-medium" ;; \
 		5) new_model="EleutherAI/gpt-neo-125M" ;; \
-		6) read -p "Enter model ID: " new_model ;; \
-		*) echo "Invalid option"; exit 1 ;; \
+		6) read -p "Model ID: " new_model ;; \
+		*) echo "Invalid"; exit 1 ;; \
 	esac; \
-	sed -i.bak "s/MODEL_ID = .*/MODEL_ID = $$new_model/" config.py; \
-	sed -i.bak "s/MODEL_ID = .*/MODEL_ID = $$new_model/" Makefile; \
+	sed -i.bak "s/MODEL_ID = .*/MODEL_ID = $$new_model/" config.py Makefile; \
 	rm -f config.py.bak Makefile.bak; \
-	echo "✅ Model changed to: $$new_model"; \
-	echo "Run 'make init' to download the new model"
+	echo "✅ Changed to: $$new_model"; \
+	echo "Run 'make init' to download"
 
 # Clean up generated files
 clean:
-	@echo "🧹 Cleaning up..."
-	@rm -f cloudflared.tgz tunnel.log fastapi.log
+	@rm -f cloudflared.tgz tunnel.log fastapi.log cloudflared
 	@rm -rf .venv
-	@rm -f cloudflared
-	@echo "✅ Cleanup complete"
+	@echo "✅ Cleaned"

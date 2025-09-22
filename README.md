@@ -16,6 +16,14 @@ This will:
 ```bash
 make serve
 ```
+
+**Options:**
+```bash
+make serve PORT=6050        # Use custom port (default: 8000)
+make serve DEBUG=true       # Enable debug logging
+make init DEBUG=true        # Debug mode for initialization
+```
+
 This will start the FastAPI app and Cloudflare tunnel. You should see something similar to the following:
 
 ```bash

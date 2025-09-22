@@ -9,7 +9,7 @@ DEBUG ?= false
 # MODEL_ID = gpt2
 # MODEL_ID = EleutherAI/gpt-neo-125M
 
-.PHONY: init serve clean help change-model
+.PHONY: init serve clean help change-model logs
 
 # Default target
 help:
@@ -18,6 +18,7 @@ help:
 	@echo "  make serve  - Start FastAPI app and Cloudflare tunnel"
 	@echo "  make clean  - Clean up generated files"
 	@echo "  make change-model - Change the model configuration"
+	@echo "  make logs   - Show tunnel logs for debugging"
 	@echo "  make help   - Show this help"
 	@echo ""
 	@echo "Options:"
@@ -50,7 +51,7 @@ init:
 	@if [ "$(DEBUG)" = "true" ]; then \
 		.venv/bin/python -c "from transformers import AutoTokenizer, AutoModelForCausalLM; import torch; tokenizer = AutoTokenizer.from_pretrained('$(MODEL_ID)'); model = AutoModelForCausalLM.from_pretrained('$(MODEL_ID)', dtype=torch.float16, device_map='auto')"; \
 	else \
-		.venv/bin/python -c "from transformers import AutoTokenizer, AutoModelForCausalLM; import torch; tokenizer = AutoTokenizer.from_pretrained('$(MODEL_ID)'); model = AutoModelForCausalLM.from_pretrained('$(MODEL_ID)', dtype=torch.float16, device_map='auto')" > /dev/null 2>&1; \
+		.venv/bin/python -c "from transformers import AutoTokenizer, AutoModelForCausalLM; import torch; tokenizer = AutoTokenizer.from_pretrained('$(MODEL_ID)'); model = AutoModelForCausalLM.from_pretrained('$(MODEL_ID)', dtype=torch.float16, device_map='auto')" 2>&1 | grep -v "UserWarning\|CUDA initialization"; \
 	fi
 	@echo "✅ Ready! Run 'make serve' to start"
 
@@ -67,15 +68,19 @@ serve:
 	fi
 	@FASTAPI_PID=$$!; sleep 5; \
 	./cloudflared tunnel --url http://127.0.0.1:$(PORT) > tunnel.log 2>&1 & \
-	TUNNEL_PID=$$!; sleep 8; \
+	TUNNEL_PID=$$!; sleep 10; \
 	TUNNEL_URL=$$(grep -o 'https://[^[:space:]]*\.trycloudflare\.com' tunnel.log 2>/dev/null | head -1); \
 	echo ""; \
 	echo "🎉 Poke-LLM API is running!"; \
 	echo "═══════════════════════════════"; \
 	echo "📱 Local:  http://127.0.0.1:$(PORT)"; \
-	echo "🌐 Public: $$TUNNEL_URL"; \
-	echo "📚 Docs:   http://127.0.0.1:$(PORT)/docs"; \
-	echo "🧪 Test:   python test.py"; \
+	if [ ! -z "$$TUNNEL_URL" ]; then \
+		echo "🌐 Public: $$TUNNEL_URL"; \
+	else \
+		echo "🌐 Public: ❌ Tunnel failed - check tunnel.log"; \
+		echo "🐛 Debug:  make serve DEBUG=true"; \
+	fi; \
+	echo "🧪 Test:   python test.py --url <public-link> --key <your-api-key>"; \
 	echo "🛑 Stop:   kill $$FASTAPI_PID $$TUNNEL_PID"; \
 	echo "═══════════════════════════════"; \
 	echo ""; \
@@ -99,6 +104,17 @@ change-model:
 	rm -f config.py.bak Makefile.bak; \
 	echo "✅ Changed to: $$new_model"; \
 	echo "Run 'make init' to download"
+
+# Show tunnel logs
+logs:
+	@if [ -f "tunnel.log" ]; then \
+		echo "🔍 Tunnel logs:"; \
+		echo "═══════════════════════════════"; \
+		tail -20 tunnel.log; \
+		echo "═══════════════════════════════"; \
+	else \
+		echo "❌ No tunnel.log found"; \
+	fi
 
 # Clean up generated files
 clean:

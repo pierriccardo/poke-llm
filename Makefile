@@ -42,10 +42,18 @@ init:
 		echo "🔑 Enter API key:"; read -p "API Key: " api_key; echo "$$api_key" > .api-key; \
 	fi
 	@if [ ! -f "cloudflared" ]; then \
+		OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
 		ARCH=$$(uname -m); \
-		URL=$$([ "$$ARCH" = "arm64" ] && echo "cloudflared-darwin-arm64.tgz" || echo "cloudflared-darwin-amd64.tgz"); \
-		curl -L "https://github.com/cloudflare/cloudflared/releases/latest/download/$$URL" -o cloudflared.tgz; \
-		tar -xzf cloudflared.tgz; chmod +x cloudflared; rm cloudflared.tgz; \
+		if [ "$$OS" = "darwin" ]; then \
+			URL=$$([ "$$ARCH" = "arm64" ] && echo "cloudflared-darwin-arm64.tgz" || echo "cloudflared-darwin-amd64.tgz"); \
+		elif [ "$$OS" = "linux" ]; then \
+			URL=$$([ "$$ARCH" = "aarch64" ] && echo "cloudflared-linux-arm64" || echo "cloudflared-linux-amd64"); \
+		else \
+			echo "❌ Unsupported OS: $$OS"; exit 1; \
+		fi; \
+		curl -L "https://github.com/cloudflare/cloudflared/releases/latest/download/$$URL" -o $$([ "$$OS" = "darwin" ] && echo "cloudflared.tgz" || echo "cloudflared"); \
+		if [ "$$OS" = "darwin" ]; then tar -xzf cloudflared.tgz; rm cloudflared.tgz; fi; \
+		chmod +x cloudflared; \
 	fi
 	@echo "Preparing model $(MODEL_ID)..."
 	@if [ "$(DEBUG)" = "true" ]; then \

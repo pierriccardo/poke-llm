@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import os
+from config import MODEL_ID
 
 
 # Load API key from file
@@ -23,9 +24,6 @@ class GenRequest(BaseModel):
 
 
 app = FastAPI()
-
-# (Small, quick model for demo — replace with your base model path)
-MODEL_ID = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, use_fast=True)
 model = AutoModelForCausalLM.from_pretrained(MODEL_ID, dtype=torch.float16, device_map="auto")

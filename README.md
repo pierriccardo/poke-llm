@@ -1,11 +1,22 @@
 # API to Poke LLM
 
 ## Quick setup
-Create a file `.api-key` and write there your private API key, then just run
+
+### 1. Initialize everything
 ```bash
-$ sh init.sh
+make init
 ```
-the script will install dependencies, cloudflare binary, and automatically run `app.py` in a local server and trigger cloudflare tunneling on a random url. You should see something similar to the following:
+This will:
+- Install dependencies
+- Prompt you to enter your API key (saved to `.api-key`)
+- Download cloudflared
+- Prepare the model
+
+### 2. Start the API
+```bash
+make serve
+```
+This will start the FastAPI app and Cloudflare tunnel. You should see something similar to the following:
 
 ```bash
 🚀 Starting Poke-LLM...
@@ -55,25 +66,38 @@ response = requests.post(url, json=data, headers=headers)
 print(response.json())
 ```
 
-### JavaScript
-```javascript
-// Read API key from .api-key file (Node.js)
-const fs = require('fs');
-const apiKey = fs.readFileSync('.api-key', 'utf8').trim();
+**Replace `your-tunnel-url` with the actual URL shown when you run the script!**
 
-fetch('https://your-tunnel-url.trycloudflare.com/generate', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': apiKey
-  },
-  body: JSON.stringify({
-    prompt: 'Hello, how are you?',
-    max_new_tokens: 50
-  })
-})
-.then(response => response.json())
-.then(data => console.log(data));
+## Available Commands
+
+- `make init` - Install dependencies, download cloudflared, and prepare the model
+- `make serve` - Start FastAPI app and Cloudflare tunnel
+- `make change-model` - Change the language model (interactive menu)
+- `make clean` - Clean up generated files (venv, logs, etc.)
+- `make help` - Show all available commands
+
+## Changing the Model
+
+You can easily switch between different language models:
+
+```bash
+make change-model
 ```
 
-**Replace `your-tunnel-url` with the actual URL shown when you run the script!**
+This will show you a menu with popular models:
+- **TinyLlama** (default) - Small, fast, good for testing
+- **GPT-2** - Very small, very fast
+- **DistilGPT-2** - Smaller GPT-2 variant
+- **DialoGPT** - Optimized for conversations
+- **GPT-Neo** - Alternative to GPT-2
+- **Custom** - Enter any Hugging Face model ID
+
+After changing the model, run `make init` to download it.
+
+## File Structure
+
+- `.api-key` - Your private API key (create this file)
+- `app.py` - FastAPI application
+- `test.py` - Test script for the API
+- `requirements.txt` - Python dependencies
+- `Makefile` - Build and run commands

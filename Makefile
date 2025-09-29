@@ -9,7 +9,7 @@ DEBUG ?= false
 # MODEL_ID = gpt2
 # MODEL_ID = EleutherAI/gpt-neo-125M
 
-.PHONY: init serve clean help change-model logs
+.PHONY: init serve clean help logs
 
 # Default target
 help:
@@ -17,7 +17,6 @@ help:
 	@echo "  make init   - Install dependencies, download cloudflared, and prepare model"
 	@echo "  make serve  - Start FastAPI app and Cloudflare tunnel"
 	@echo "  make clean  - Clean up generated files"
-	@echo "  make change-model - Change the model configuration"
 	@echo "  make logs   - Show tunnel logs for debugging"
 	@echo "  make help   - Show this help"
 	@echo ""
@@ -93,25 +92,6 @@ serve:
 	echo "═══════════════════════════════"; \
 	echo ""; \
 	wait
-
-# Change model configuration
-change-model:
-	@echo "🤖 Current: $(MODEL_ID)"
-	@echo "1) TinyLlama (default) 2) gpt2 3) distilgpt2 4) DialoGPT 5) gpt-neo 6) Custom"
-	@read -p "Choose (1-6): " choice; \
-	case $$choice in \
-		1) new_model="TinyLlama/TinyLlama-1.1B-Chat-v1.0" ;; \
-		2) new_model="gpt2" ;; \
-		3) new_model="distilgpt2" ;; \
-		4) new_model="microsoft/DialoGPT-medium" ;; \
-		5) new_model="EleutherAI/gpt-neo-125M" ;; \
-		6) read -p "Model ID: " new_model ;; \
-		*) echo "Invalid"; exit 1 ;; \
-	esac; \
-	sed -i.bak "s/MODEL_ID = .*/MODEL_ID = $$new_model/" config.py Makefile; \
-	rm -f config.py.bak Makefile.bak; \
-	echo "✅ Changed to: $$new_model"; \
-	echo "Run 'make init' to download"
 
 # Show tunnel logs
 logs:

@@ -1,5 +1,10 @@
+.DS_Store
 cloudflared
 .api-key
+wandb
+models/*
+dataset/raw/*
+dataset/processed/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

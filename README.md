@@ -1,4 +1,61 @@
-# API to Poke LLM
+# Poke LLM
+
+# Quick start
+## Venv, dependencies, API:
+```sh
+$ make init
+$ source .venv/bin/activate
+```
+## Dataset Quick Setup
+```sh
+# Download, preprocess and visualize a sample dataset of 10 logs
+$ python3 dataset/download.py --format "[Gen 9] OU" --name <ds-name> --num_logs 10
+$ python3 dataset/preprocessing.py --dataset <ds-name>
+$ python3 dataset/visualize.py --dataset <ds-name> --num_samples 3
+```
+## Launch finetuning
+```sh
+$ python3 script/finetune.py --dataset <ds-name>
+```
+
+## Dataset Preprocessing Explained
+Dataset is stored in `dataset/`, which contains two folders for:
+- `dataset/raw/`: downloaded data from `download.py` will be saved here
+- `dataset/processed`: processed dataset via `preprocessing.py` will be saved here, splitting in train, validation and test
+```bash
+  dataset
+  ├── processed
+  │   ├── train/
+  │   ├── val/
+  │   └── test/
+  ├── raw/
+```
+
+### 1. Download the dataset
+```bash
+# will save the dataset inside
+python3 dataset/download.py --format "[Gen 9] OU" --num_logs 10
+# do not forget "" on format
+```
+### 2. Preprocess the dataset
+The following script preprocess each log in the dataset. Creates N samples (one per turn in the log of that battle) and stores them in `jsonl` file. Each sample is a pair:
+```json
+  {"input": "Turn 0, Team 1, Charizard, ....", "output": "use Flamethrower"},
+  {"input": "Turn 1, Team 1, Charizard, ....", "output": "switch to Blastoise"},
+  ...
+```
+
+```bash
+python3 dataset/preprocessing.py --dataset dataset_gen9ou_100
+```
+
+### 3. Visualize
+To get a nice visualization of each sample run:
+```bash
+python3 dataset/visualize.py --dataset dataset_gen9ou_100
+```
+
+# API for Exposing Trained Models
 
 ## Quick setup
 
@@ -84,24 +141,6 @@ print(response.json())
 - `make clean` - Clean up generated files (venv, logs, etc.)
 - `make help` - Show all available commands
 
-## Changing the Model
-
-You can easily switch between different language models:
-
-```bash
-make change-model
-```
-
-This will show you a menu with popular models:
-- **TinyLlama** (default) - Small, fast, good for testing
-- **GPT-2** - Very small, very fast
-- **DistilGPT-2** - Smaller GPT-2 variant
-- **DialoGPT** - Optimized for conversations
-- **GPT-Neo** - Alternative to GPT-2
-- **Custom** - Enter any Hugging Face model ID
-
-After changing the model, run `make init` to download it.
-
 ## File Structure
 
 - `.api-key` - Your private API key (create this file)
@@ -109,3 +148,4 @@ After changing the model, run `make init` to download it.
 - `test.py` - Test script for the API
 - `requirements.txt` - Python dependencies
 - `Makefile` - Build and run commands
+

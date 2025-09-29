@@ -1,8 +1,8 @@
+import os
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
-import os
 from config import MODEL_ID
 
 

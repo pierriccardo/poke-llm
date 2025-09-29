@@ -5,3 +5,14 @@ torch
 tyro
 accelerate
 requests
+wandb
+datasets
+peft
+tqdm
+rich
+bitsandbytes
+pandas
+scikit-learn
+xformers
+unsloth
+trl

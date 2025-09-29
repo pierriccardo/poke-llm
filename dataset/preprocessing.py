@@ -12,7 +12,7 @@ import random
 
 from dataclasses import dataclass
 from tqdm import tqdm
-from typing import List, Dict
+from typing import List, Dict, Optional
 from rich.console import Console
 
 
@@ -21,8 +21,6 @@ class Args:
     """Simple preprocessing arguments"""
     dataset: str = "dataset_gen9ou_1"
     """Input CSV file with battle logs"""
-    max_battles: int = 10
-    """Number of battles to process"""
     output_dir: str = "dataset/processed"
     """Output directory for processed data"""
     test_split: float = 0.2
@@ -218,9 +216,7 @@ def main():
     all_samples = []
 
     # Process each battle
-    for idx, row in tqdm(df.iterrows(), total=min(len(df), args.max_battles), desc="Processing battles"):
-        if idx >= args.max_battles:
-            break
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing battles"):
 
         log_text = str(row.get('log', ''))
         if not log_text or log_text.strip() == 'nan':

@@ -15,7 +15,7 @@ $ python3 dataset/visualize.py --dataset <ds-name> --num_samples 3
 ```
 ## Launch finetuning
 ```sh
-$ python3 script/finetune.py --dataset <ds-name>
+$ python3 scripts/finetune.py --dataset <ds-name>
 ```
 
 ## Dataset Preprocessing Explained

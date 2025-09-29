@@ -1,9 +1,11 @@
+import os
 import re
 import tyro
 import requests
 import pandas as pd
 
 from dataclasses import dataclass
+from typing import Optional
 
 # API base URL
 API_URL = "https://entertainment-philips-louisiana-interfaces.trycloudflare.com"
@@ -13,7 +15,7 @@ API_URL = "https://entertainment-philips-louisiana-interfaces.trycloudflare.com"
 class Args:
     format: str = "[Gen 9] OU"
     num_logs: int = 10000
-    name: str = None
+    name: Optional[str] = None
 
     def __post__init__(self):
         if self.name is None:
@@ -34,6 +36,9 @@ response = requests.get(f"{API_URL}/dataset", params={
 if response.status_code == 200:
     data = response.json()
     df = pd.DataFrame(data['logs'])
+
+    os.makedirs("dataset/raw", exist_ok=True)
+
     df.to_csv(f"dataset/raw/{args.name}.csv", index=False, sep=';', encoding='utf-8')
     print("========== Download Completed ==========")
     print(df.head(3))
